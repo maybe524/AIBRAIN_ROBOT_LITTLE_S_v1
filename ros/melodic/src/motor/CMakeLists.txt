@@ -52,19 +52,19 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
+#add_message_files(
 #  DIRECTORY
 #  msg
-  FILES
-  Message_motor.msg
-)
+#  FILES
+#  Message_motor.msg
+#)
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
+#add_service_files(
+#  FILES
+#  Service1.srv
 #   Service2.srv
-# )
+#)
 
 ## Generate actions in the 'action' folder
 # add_action_files(

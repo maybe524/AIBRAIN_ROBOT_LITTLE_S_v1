@@ -18,6 +18,7 @@ int main(int argc, char **argv)
         msg.data = ss.str();
         
         ROS_INFO("%s", msg.data.c_str());
+        motor_pub.publish(msg);
         ros::spinOnce();
         
         loop_rate.sleep();

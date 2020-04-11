@@ -1,8 +1,0 @@
-prefix=/home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodic/src/motor/build/devel
-
-Name: motor
-Description: Description of motor
-Version: 0.0.0
-Cflags: -I/home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodic/src/motor/include
-Libs: -L${prefix}/lib -lmotor
-Requires: roscpp rospy std_msgs geometry_msgs message_runtime
