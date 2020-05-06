@@ -12,11 +12,54 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <resource_core.h>
+
+#include "uart_motor_tx2_driver.h"
 
 //#define rec_buf_wait_2s 2
 #define buffLen 1024
 #define rcvTimeOut 2
 
+int CUartMotorTX2Resource::open(char *resName, unsigned int flags)
+{
+    int ret;
+    int iSetOpt = 0, fdSerial = 0;
+    char buffRcvData[buffLen] = {0};
+    unsigned int readDataNum = 0;
+
+    //openPort
+    fdSerial = openPort(fdSerial, 4);
+    if (fdSerial < 0) {
+        perror("open_port error");
+        return -1;
+    }
+
+    iSetOpt = setOpt(fdSerial, 115200, 8, 'N', 1);
+    if (iSetOpt < 0) {
+        perror("set_opt error");
+        return -1;
+    }
+    printf("Serial fdSerial=%d\n", fdSerial);
+
+    tcflush(fdSerial, TCIOFLUSH);	// ������ڻ���
+    fcntl(fdSerial, F_SETFL, 0);
+
+    buffRcvData[0] = 's';
+    buffRcvData[1] = 't';
+    buffRcvData[2] = 'a';
+    buffRcvData[3] = 'r';
+    buffRcvData[4] = 't';
+    ret = sendDataTty(fdSerial, buffRcvData, 5);
+    printf("ret: %d.\n", ret);
+    while (1) {
+        memset(buffRcvData, 0, sizeof(buffRcvData));
+        readDataNum = readDataTty(fdSerial, buffRcvData, rcvTimeOut, buffLen);
+        printf("readDataNum = %d, buffRcvData: %s\n", readDataNum, buffRcvData);
+        // sendDataTty(fdSerial, buffRcvData, readDataNum);
+    }
+
+    return 0;
+}
 
 int read_data_tty(int fd, char *rec_buf, int rec_wait)
 {
@@ -305,3 +348,12 @@ int main(int argc, char** argv)
 
     return 1;
 }
+
+int driver_uart_tx2_init(unsigned int flags)
+{
+    printf("driver_uart_tx2_init\n");
+
+    return 0;
+}
+
+AIBRAIN_CORE_MODULE_INIT(driver_uart_tx2_init);
