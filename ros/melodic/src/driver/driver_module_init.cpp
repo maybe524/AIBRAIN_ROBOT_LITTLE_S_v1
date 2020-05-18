@@ -3,10 +3,11 @@
 //
 
 #include "log.h"
+#include "uart_motor_tx2_driver.h"
 
-#defien DRIVER_MODULE_TAG   "driverMdl"
+#define DRIVER_MODULE_TAG   "driverMdl"
 
-int driver_module_init(unsigned int flags)
+int driverModuleInit(unsigned int flags)
 {
     int ret;
 

@@ -10,24 +10,27 @@
 #include <vector>
 #include <pthread.h>
 
+#include "log.h"
+
 using namespace std;
 
 #define RESOURCE_USER_CNT   10
+#define RESOURCE_TAG        "resourceT"
 
 class CResourceUser;
 
 class CResource {
 public:
-    CResource();
-    CResource(char *resName);
-   ~CResource();
+    CResource() {};
+    CResource(char *resName) {};
+   ~CResource() {};
 
     // resource的操作
-    int open (char *userName, unsigned int flags) {return -EINVAL;};
-    int read (void *data, unsigned int len, unsigned int flags) {return -EINVAL;};
-    int ctrl (unsigned int cmd, void *data, unsigned int len, unsigned int flags) {return -EINVAL;};
-    int write(void *data, unsigned int len, unsigned int flags) {return -EINVAL;};
-    int close(char *userName, unsigned int flags) {return -EINVAL;};
+    virtual int open (char *userName, unsigned int flags) = 0;
+    virtual int read (void *data, unsigned int len, unsigned int flags) = 0;
+    virtual int ctrl (unsigned int cmd, void *data, unsigned int len, unsigned int flags) = 0;
+    virtual int write(void *data, unsigned int len, unsigned int flags) = 0;
+    virtual int close(char *userName, unsigned int flags) = 0;
 
     char *name;
     int usedCount, currIdx;      // 使用其他资源的次数、被使用的次数
@@ -36,8 +39,8 @@ public:
 
 class CResourceUser {
 public:
-    CResourceUser();
-   ~CResourceUser();
+    CResourceUser() {};
+   ~CResourceUser() {};
 
     char *name;
     int useCount, currIdx;

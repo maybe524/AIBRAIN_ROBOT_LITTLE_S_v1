@@ -5,6 +5,6 @@
 #ifndef EXAMPLE_COMMON_CORE_H
 #define EXAMPLE_COMMON_CORE_H
 
-#define AIBRAIN_CORE_MODULE_INIT(m)
+#include "common.h"
 
 #endif //EXAMPLE_COMMON_CORE_H

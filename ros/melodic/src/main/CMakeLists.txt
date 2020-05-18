@@ -121,10 +121,13 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
 # include
-  ${catkin_INCLUDE_DIRS}
-  ../core/include
-  src/platform/aibrain_jetson_tx2_ros/resource_core
-  ../include
+        ${catkin_INCLUDE_DIRS}
+        ../core/include
+        ../driver/include
+        src/platform/aibrain_jetson_tx2_ros/resource_core
+        ../include
+        ../driver/uart
+        ../app/include
 )
 
 ## Declare a C++ library
@@ -141,9 +144,14 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_node
-  src/main.cpp
-  ../core/resource_core.cpp
-  ../common/log.cpp
+        src/main.cpp
+        ../core/core_module_init.cpp
+        ../core/resource_core.cpp
+        ../common/log.cpp
+        ../driver/uart/uart_motor_tx2_driver.cpp
+        ../driver/driver_module_init.cpp
+        ../app/app_module_init.cpp
+        ../app/app_motor_test.cpp
   )
 
 ## Rename C++ executable without prefix

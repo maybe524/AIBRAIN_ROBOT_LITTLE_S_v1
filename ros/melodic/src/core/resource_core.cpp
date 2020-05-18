@@ -33,7 +33,7 @@ int resoucreRegister(CResource *res)
     int ret = 0;
     vector<CResource *>::iterator iter;
 
-    if (res)
+    if (!res)
         return -EINVAL;
     resoucreMutexCheckInit();
 
@@ -46,6 +46,7 @@ int resoucreRegister(CResource *res)
     }
     memset(res->used, 0, sizeof(CResourceUser *) * RESOURCE_USER_CNT);
     sRList.push_back(res);
+    logInfo(RESOURCE_TAG, "register ok, name: \"%s\"", res->name);
 
 register_end:
     pthread_mutex_unlock(&sRMutex);

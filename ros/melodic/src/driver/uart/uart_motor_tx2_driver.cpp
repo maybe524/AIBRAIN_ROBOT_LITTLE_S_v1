@@ -14,11 +14,23 @@
 #include <sys/stat.h>
 #include <resource_core.h>
 
+#include "log.h"
+#include "common_core.h"
 #include "uart_motor_tx2_driver.h"
 
 //#define rec_buf_wait_2s 2
 #define buffLen 1024
 #define rcvTimeOut 2
+
+static CUartMotorTX2Resource uartMotorTX2Resource("res/uart/motor");
+
+static int openPort(int fd, int comport);
+int read_data_tty(int fd, char *rec_buf, int rec_wait);
+int device_485_receive(int fd);
+static int openPort(int fd, int comport);
+int setOpt(int fd, int nSpeed, int nBits, char nEvent, int nStop);
+int readDataTty(int fd, char *rcv_buf, int TimeOut, int Len);
+int sendDataTty(int fd, char *send_buf, int Len);
 
 int CUartMotorTX2Resource::open(char *resName, unsigned int flags)
 {
@@ -27,19 +39,20 @@ int CUartMotorTX2Resource::open(char *resName, unsigned int flags)
     char buffRcvData[buffLen] = {0};
     unsigned int readDataNum = 0;
 
-    //openPort
+    logInfo(UART_MOTOR_TX2_TAG, "CUartMotorTX2Resource::open");
+    // openPort
     fdSerial = openPort(fdSerial, 4);
     if (fdSerial < 0) {
-        perror("open_port error");
+        logInfo(UART_MOTOR_TX2_TAG, "open_port error");
         return -1;
     }
 
     iSetOpt = setOpt(fdSerial, 115200, 8, 'N', 1);
     if (iSetOpt < 0) {
-        perror("set_opt error");
+        logInfo(UART_MOTOR_TX2_TAG, "set_opt error");
         return -1;
     }
-    printf("Serial fdSerial=%d\n", fdSerial);
+    logInfo(UART_MOTOR_TX2_TAG, "serial fdSerial=%d", fdSerial);
 
     tcflush(fdSerial, TCIOFLUSH);	// ������ڻ���
     fcntl(fdSerial, F_SETFL, 0);
@@ -50,14 +63,34 @@ int CUartMotorTX2Resource::open(char *resName, unsigned int flags)
     buffRcvData[3] = 'r';
     buffRcvData[4] = 't';
     ret = sendDataTty(fdSerial, buffRcvData, 5);
-    printf("ret: %d.\n", ret);
+    logInfo(UART_MOTOR_TX2_TAG, "ret: %d.", ret);
     while (1) {
         memset(buffRcvData, 0, sizeof(buffRcvData));
         readDataNum = readDataTty(fdSerial, buffRcvData, rcvTimeOut, buffLen);
-        printf("readDataNum = %d, buffRcvData: %s\n", readDataNum, buffRcvData);
+        logInfo(UART_MOTOR_TX2_TAG, "readDataNum = %d, buffRcvData: %s", readDataNum, buffRcvData);
         // sendDataTty(fdSerial, buffRcvData, readDataNum);
     }
 
+    return 0;
+}
+
+int CUartMotorTX2Resource::read(void *data, unsigned int len, unsigned int flags)
+{
+    return 0;
+}
+
+int CUartMotorTX2Resource::ctrl(unsigned int cmd, void *data, unsigned int len, unsigned int flags)
+{
+    return 0;
+}
+
+int CUartMotorTX2Resource::write(void *data, unsigned int len, unsigned int flags)
+{
+    return 0;
+}
+
+int CUartMotorTX2Resource::close(char *userName, unsigned int flags)
+{
     return 0;
 }
 
@@ -78,7 +111,7 @@ int read_data_tty(int fd, char *rec_buf, int rec_wait)
 
         retval = select(fd + 1, &rfds, NULL, NULL, &tv);
         if (retval == -1) {
-            perror("select()");
+            logInfo(UART_MOTOR_TX2_TAG, "select()");
             break;
         }
 		else if (retval) {
@@ -112,74 +145,74 @@ int device_485_receive(int fd)
     for (i = 0; i < 10; i++) {
         /*ret = write(fd, send_buf, strlen(send_buf));
         if (ret == -1) {
-            printf("write device %s error\n", device);
+            logInfo(UART_MOTOR_TX2_TAG, "write device %s error", device);
             return -1;
         }*/
 
         //if (read_data_tty(fd, rec_buf, rec_buf_wait_2s)) {
         if (read_data_tty(fd, rec_buf, 2)) {
-            printf("%s\n", rec_buf);
+            logInfo(UART_MOTOR_TX2_TAG, "%s", rec_buf);
         } else {
-            printf("read_error\n");
+            logInfo(UART_MOTOR_TX2_TAG, "read_error");
         }
 
         //if ((read(fd, rec_buf, strlen(rec_buf))) == -1) {
-        //      printf("error reading string\n");
+        //      logInfo(UART_MOTOR_TX2_TAG, "error reading string");
         //      return -1;
         //} else {
-        //      printf("%s\n", rec_buf);
+        //      logInfo(UART_MOTOR_TX2_TAG, "%s", rec_buf);
     }
     return 0;
 }
 
-int openPort(int fd, int comport)
+static int openPort(int fd, int comport)
 {
     if (comport == 1) {
         fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_NDELAY);
         if (-1 == fd) {
-            perror("Can't Open Serial Port");
+            logInfo(UART_MOTOR_TX2_TAG, "Can't Open Serial Port");
             return (-1);
         } else {
-            printf("open ttyS0 .....\n");
+            logInfo(UART_MOTOR_TX2_TAG, "open ttyS0 .....");
         }
     } else if (comport == 2) {
         fd = open("/dev/ttyS1", O_RDWR | O_NOCTTY | O_NDELAY);
         if (-1 == fd) {
-            perror("Can't Open Serial Port");
+            logInfo(UART_MOTOR_TX2_TAG, "Can't Open Serial Port");
             return (-1);
         } else {
-            printf("open ttyS1 .....\n");
+            logInfo(UART_MOTOR_TX2_TAG, "open ttyS1 .....");
         }
     } else if (comport == 3) {
         fd = open("/dev/ttyS2", O_RDWR | O_NOCTTY | O_NDELAY);
         if (-1 == fd) {
-            perror("Can't Open Serial Port");
+            logInfo(UART_MOTOR_TX2_TAG, "Can't Open Serial Port");
             return (-1);
         } else {
-            printf("open ttyS2 .....\n");
+            logInfo(UART_MOTOR_TX2_TAG, "open ttyS2 .....");
         }
     }
     else if (comport == 4) {
         fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NDELAY);
         if (-1 == fd) {
-            perror("Can't Open Serial Port");
+            logInfo(UART_MOTOR_TX2_TAG, "Can't Open Serial Port");
             return (-1);
         } else {
-            printf("open ttyUSB0 .....\n");
+            logInfo(UART_MOTOR_TX2_TAG, "open ttyUSB0 .....");
         }
     }
 
     if (fcntl(fd, F_SETFL, 0) < 0) {
-        printf("fcntl failed!\n");
+        logInfo(UART_MOTOR_TX2_TAG, "fcntl failed!");
     } else {
-        printf("fcntl=%d\n", fcntl(fd, F_SETFL, 0));
+        logInfo(UART_MOTOR_TX2_TAG, "fcntl=%d", fcntl(fd, F_SETFL, 0));
     }
     if (isatty(STDIN_FILENO) == 0) {
-        printf("standard input is not a terminal device\n");
+        logInfo(UART_MOTOR_TX2_TAG, "standard input is not a terminal device");
     } else {
-        printf("is a tty success!\n");
+        logInfo(UART_MOTOR_TX2_TAG, "is a tty success!");
     }
-    printf("fd-open=%d\n", fd);
+    logInfo(UART_MOTOR_TX2_TAG, "fd-open=%d", fd);
     return fd;
 }
 
@@ -188,7 +221,7 @@ int setOpt(int fd, int nSpeed, int nBits, char nEvent, int nStop)
     struct termios newtio, oldtio;
 
     if (tcgetattr(fd, &oldtio) != 0) {
-        perror("SetupSerial 1");
+        logInfo(UART_MOTOR_TX2_TAG, "SetupSerial 1");
         return -1;
     }
     bzero(&newtio, sizeof(newtio));
@@ -251,11 +284,11 @@ int setOpt(int fd, int nSpeed, int nBits, char nEvent, int nStop)
     newtio.c_cc[VMIN] = 0;
     tcflush(fd, TCIFLUSH);
     if ((tcsetattr(fd, TCSANOW, &newtio)) != 0) {
-        perror("com set error");
+        logInfo(UART_MOTOR_TX2_TAG, "com set error");
         return -1;
     }
 
-    printf("set done!\n");
+    logInfo(UART_MOTOR_TX2_TAG, "set done!");
     return 0;
 }
 
@@ -274,7 +307,7 @@ int readDataTty(int fd, char *rcv_buf, int TimeOut, int Len)
         FD_SET(fd, &rfds);
         retval = select(fd + 1, &rfds, NULL, NULL, &tv);
         if (retval == -1) {
-            perror("select()");
+            logInfo(UART_MOTOR_TX2_TAG, "select()");
             break;
         }
 		else if (retval) {
@@ -300,14 +333,14 @@ int sendDataTty(int fd, char *send_buf, int Len)
 
     ret = write(fd, send_buf, Len);
     if (ret == -1) {
-        printf("write device error\n");
+        logInfo(UART_MOTOR_TX2_TAG, "write device error");
         return -1;
     }
 
     return 1;
 }
 
-
+#if 0
 int main(int argc, char** argv)
 {
 	int ret;
@@ -318,16 +351,16 @@ int main(int argc, char** argv)
     //openPort
     fdSerial = openPort(fdSerial, 4);
     if (fdSerial < 0) {
-        perror("open_port error");
+        logInfo(UART_MOTOR_TX2_TAG, "open_port error");
         return -1;
     }
 
 	iSetOpt = setOpt(fdSerial, 115200, 8, 'N', 1);
     if (iSetOpt < 0) {
-        perror("set_opt error");
+        logInfo(UART_MOTOR_TX2_TAG, "set_opt error");
         return -1;
     }
-    printf("Serial fdSerial=%d\n", fdSerial);
+    logInfo(UART_MOTOR_TX2_TAG, "Serial fdSerial=%d", fdSerial);
 
     tcflush(fdSerial, TCIOFLUSH);	// ������ڻ���
     fcntl(fdSerial, F_SETFL, 0);
@@ -338,20 +371,25 @@ int main(int argc, char** argv)
     buffRcvData[3] = 'r';
     buffRcvData[4] = 't';
     ret = sendDataTty(fdSerial, buffRcvData, 5);
-	printf("ret: %d.\n", ret);
+	logInfo(UART_MOTOR_TX2_TAG, "ret: %d.", ret);
     while (1) {
 		memset(buffRcvData, 0, sizeof(buffRcvData));
         readDataNum = readDataTty(fdSerial, buffRcvData, rcvTimeOut, buffLen);
-		printf("readDataNum = %d, buffRcvData: %s\n", readDataNum, buffRcvData);
+		logInfo(UART_MOTOR_TX2_TAG, "readDataNum = %d, buffRcvData: %s", readDataNum, buffRcvData);
         // sendDataTty(fdSerial, buffRcvData, readDataNum);
     }
 
     return 1;
 }
+#endif
 
 int driver_uart_tx2_init(unsigned int flags)
 {
-    printf("driver_uart_tx2_init\n");
+    int ret;
+
+    logInfo(UART_MOTOR_TX2_TAG, "driver_uart_tx2 start");
+    ret = resoucreRegister(&uartMotorTX2Resource);
+    logInfo(UART_MOTOR_TX2_TAG, "driver_uart_tx2 ret: %d", ret);
 
     return 0;
 }
