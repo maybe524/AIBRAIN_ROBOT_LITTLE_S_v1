@@ -24,10 +24,9 @@
 
 static CUartMotorTX2Resource uartMotorTX2Resource("res/uart/motor");
 
-static int openPort(int fd, int comport);
 int read_data_tty(int fd, char *rec_buf, int rec_wait);
 int device_485_receive(int fd);
-static int openPort(int fd, int comport);
+static int openPort(int comport);
 int setOpt(int fd, int nSpeed, int nBits, char nEvent, int nStop);
 int readDataTty(int fd, char *rcv_buf, int TimeOut, int Len);
 int sendDataTty(int fd, char *send_buf, int Len);
@@ -39,37 +38,21 @@ int CUartMotorTX2Resource::open(char *resName, unsigned int flags)
     char buffRcvData[buffLen] = {0};
     unsigned int readDataNum = 0;
 
-    logInfo(UART_MOTOR_TX2_TAG, "CUartMotorTX2Resource::open");
+    logInfo(UART_MOTOR_TX2_TAG, "uart open...");
     // openPort
-    fdSerial = openPort(fdSerial, 4);
+    fdSerial = openPort(2);
     if (fdSerial < 0) {
         logInfo(UART_MOTOR_TX2_TAG, "open_port error");
         return -1;
     }
-
     iSetOpt = setOpt(fdSerial, 115200, 8, 'N', 1);
     if (iSetOpt < 0) {
         logInfo(UART_MOTOR_TX2_TAG, "set_opt error");
         return -1;
     }
-    logInfo(UART_MOTOR_TX2_TAG, "serial fdSerial=%d", fdSerial);
-
-    tcflush(fdSerial, TCIOFLUSH);	// ������ڻ���
+    logInfo(UART_MOTOR_TX2_TAG, "serial fdSerial = %d, done", fdSerial);
+    tcflush(fdSerial, TCIOFLUSH);
     fcntl(fdSerial, F_SETFL, 0);
-
-    buffRcvData[0] = 's';
-    buffRcvData[1] = 't';
-    buffRcvData[2] = 'a';
-    buffRcvData[3] = 'r';
-    buffRcvData[4] = 't';
-    ret = sendDataTty(fdSerial, buffRcvData, 5);
-    logInfo(UART_MOTOR_TX2_TAG, "ret: %d.", ret);
-    while (1) {
-        memset(buffRcvData, 0, sizeof(buffRcvData));
-        readDataNum = readDataTty(fdSerial, buffRcvData, rcvTimeOut, buffLen);
-        logInfo(UART_MOTOR_TX2_TAG, "readDataNum = %d, buffRcvData: %s", readDataNum, buffRcvData);
-        // sendDataTty(fdSerial, buffRcvData, readDataNum);
-    }
 
     return 0;
 }
@@ -165,54 +148,22 @@ int device_485_receive(int fd)
     return 0;
 }
 
-static int openPort(int fd, int comport)
+static int openPort(int comport)
 {
-    if (comport == 1) {
-        fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_NDELAY);
-        if (-1 == fd) {
-            logInfo(UART_MOTOR_TX2_TAG, "Can't Open Serial Port");
-            return (-1);
-        } else {
-            logInfo(UART_MOTOR_TX2_TAG, "open ttyS0 .....");
-        }
-    } else if (comport == 2) {
-        fd = open("/dev/ttyS1", O_RDWR | O_NOCTTY | O_NDELAY);
-        if (-1 == fd) {
-            logInfo(UART_MOTOR_TX2_TAG, "Can't Open Serial Port");
-            return (-1);
-        } else {
-            logInfo(UART_MOTOR_TX2_TAG, "open ttyS1 .....");
-        }
-    } else if (comport == 3) {
-        fd = open("/dev/ttyS2", O_RDWR | O_NOCTTY | O_NDELAY);
-        if (-1 == fd) {
-            logInfo(UART_MOTOR_TX2_TAG, "Can't Open Serial Port");
-            return (-1);
-        } else {
-            logInfo(UART_MOTOR_TX2_TAG, "open ttyS2 .....");
-        }
-    }
-    else if (comport == 4) {
-        fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NDELAY);
-        if (-1 == fd) {
-            logInfo(UART_MOTOR_TX2_TAG, "Can't Open Serial Port");
-            return (-1);
-        } else {
-            logInfo(UART_MOTOR_TX2_TAG, "open ttyUSB0 .....");
-        }
-    }
+    int fd = 0, ret;
+    char buff[32] = {0};
 
-    if (fcntl(fd, F_SETFL, 0) < 0) {
-        logInfo(UART_MOTOR_TX2_TAG, "fcntl failed!");
-    } else {
-        logInfo(UART_MOTOR_TX2_TAG, "fcntl=%d", fcntl(fd, F_SETFL, 0));
-    }
-    if (isatty(STDIN_FILENO) == 0) {
-        logInfo(UART_MOTOR_TX2_TAG, "standard input is not a terminal device");
-    } else {
-        logInfo(UART_MOTOR_TX2_TAG, "is a tty success!");
-    }
-    logInfo(UART_MOTOR_TX2_TAG, "fd-open=%d", fd);
+    sprintf(buff, "/dev/ttyTHS%d", comport);
+    fd = open(buff, O_RDWR | O_NOCTTY | O_NDELAY);
+    logInfo(UART_MOTOR_TX2_TAG, "open serial port: %s, ret: %d", buff, fd);
+    if (fd <= 0)
+        return -1;
+    ret = fcntl(fd, F_SETFL, 0);
+    logInfo(UART_MOTOR_TX2_TAG, "fcntl ret: %d!", ret);
+    ret = isatty(STDIN_FILENO);
+    logInfo(UART_MOTOR_TX2_TAG, "%s", !ret ? "standard input is not a terminal device" : "is a tty success");
+    logInfo(UART_MOTOR_TX2_TAG, "fd-open: %d", fd);
+
     return fd;
 }
 
