@@ -16,26 +16,26 @@
 static vector<CResource *> sRList;
 static vector<CResourceUser *> sUList;
 static pthread_mutex_t sRMutex;
-static bool isResoucreInited = false;
+static bool isresourceInited = false;
 
-static int resoucreMutexCheckInit(void)
+static int resourceMutexCheckInit(void)
 {
-    if (isResoucreInited)
+    if (isresourceInited)
         return 0;
-    isResoucreInited = true;
+    isresourceInited = true;
     pthread_mutex_init(&sRMutex, NULL);
 
     return 0;
 }
 
-int resoucreRegister(CResource *res)
+int resourceRegister(CResource *res)
 {
     int ret = 0;
     vector<CResource *>::iterator iter;
 
     if (!res)
         return -EINVAL;
-    resoucreMutexCheckInit();
+    resourceMutexCheckInit();
 
     pthread_mutex_lock(&sRMutex);
     for (iter = sRList.begin(); iter != sRList.end(); iter++) {
@@ -54,7 +54,7 @@ register_end:
     return ret;
 }
 
-int resoucreOpen(CResourceUser *resUser, char *resName)
+int resourceOpen(CResourceUser *resUser, char *resName)
 {
     int ret = -EINVAL, idxUse, idxUsed;
     vector<CResource *>::iterator iter;
@@ -62,7 +62,7 @@ int resoucreOpen(CResourceUser *resUser, char *resName)
 
     if (!resUser || !resName)
         return -EINVAL;
-    resoucreMutexCheckInit();
+    resourceMutexCheckInit();
 
     pthread_mutex_lock(&sRMutex);
     for (iter = sRList.begin(); iter != sRList.end(); iter++) {
@@ -86,14 +86,13 @@ int resoucreOpen(CResourceUser *resUser, char *resName)
     }
     if (idxUse < 0 || idxUsed < 0)
         goto open_end;
-    // 使用的资源
     ret = fndRes->open(resUser->name, 0);
     if (ret)
         goto open_end;
     resUser->use[idxUse] = fndRes;
     resUser->useCount++;
-    fndRes->used[idxUsed] = resUser;    // 被使用的资源设置
-    fndRes->usedCount++;     // 记录被使用的次数
+    fndRes->used[idxUsed] = resUser;
+    fndRes->usedCount++;
     ret = 0;
 open_end:
     pthread_mutex_unlock(&sRMutex);
@@ -101,14 +100,14 @@ open_end:
     return ret;
 }
 
-int resoucreCtrl(CResourceUser *resUser, char *resName, unsigned int cmd, void *data, unsigned int len, unsigned int flags)
+int resourceCtrl(CResourceUser *resUser, char *resName, unsigned int cmd, void *data, unsigned int len, unsigned int flags)
 {
     int ret = -EINVAL;
     vector<CResource *>::iterator iter;
 
     if (!resUser || !resName)
         return -EINVAL;
-    resoucreMutexCheckInit();
+    resourceMutexCheckInit();
 
     pthread_mutex_lock(&sRMutex);
     for (int i = 0; i < RESOURCE_USER_CNT; i++) {
@@ -122,7 +121,7 @@ int resoucreCtrl(CResourceUser *resUser, char *resName, unsigned int cmd, void *
     return ret;
 }
 
-int resoucreClose(CResourceUser *resUser, char *resName, unsigned int flags)
+int resourceClose(CResourceUser *resUser, char *resName, unsigned int flags)
 {
     int ret = -EINVAL, idxUse = -1, idxUsed = -1, i = 0;
     vector<CResource *>::iterator iter;
@@ -130,7 +129,7 @@ int resoucreClose(CResourceUser *resUser, char *resName, unsigned int flags)
 
     if (!resUser || !resName)
         return -EINVAL;
-    resoucreMutexCheckInit();
+    resourceMutexCheckInit();
 
     pthread_mutex_lock(&sRMutex);
     for (iter = sRList.begin(); iter != sRList.end(); iter++) {
@@ -164,14 +163,14 @@ close_end:
     return ret;
 }
 
-int resoucreWrite(CResourceUser *resUser, char *resName, void *data, unsigned int len, unsigned int flags)
+int resourceWrite(CResourceUser *resUser, char *resName, void *data, unsigned int len, unsigned int flags)
 {
     int ret = -EINVAL;
     vector<CResource *>::iterator iter;
 
     if (!resUser || !resName)
         return -EINVAL;
-    resoucreMutexCheckInit();
+    resourceMutexCheckInit();
 
     pthread_mutex_lock(&sRMutex);
     for (int i = 0; i < RESOURCE_USER_CNT; i++) {
@@ -185,12 +184,33 @@ int resoucreWrite(CResourceUser *resUser, char *resName, void *data, unsigned in
     return ret;
 }
 
-int resoucreDump(void)
+int resourceRead(CResourceUser *resUser, char *resName, void *data, unsigned int len, unsigned int flags)
+{
+    int ret = -EINVAL;
+    vector<CResource *>::iterator iter;
+
+    if (!resUser || !resName)
+        return -EINVAL;
+    resourceMutexCheckInit();
+
+    pthread_mutex_lock(&sRMutex);
+    for (int i = 0; i < RESOURCE_USER_CNT; i++) {
+        if (resUser->use[i] && !strcmp(resUser->use[i]->name, resName)) {
+            ret = resUser->use[i]->read(data, len, flags);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&sRMutex);
+
+    return ret;
+}
+
+int resourceDump(void)
 {
     int ret = 0;
     vector<CResource *>::iterator iter;
 
-    resoucreMutexCheckInit();
+    resourceMutexCheckInit();
     pthread_mutex_lock(&sRMutex);
     for (iter = sRList.begin(); iter != sRList.end(); iter++) {
         logInfo(RESOURCE_TAG, "resoure name: %s", (*iter)->name);
@@ -200,14 +220,14 @@ int resoucreDump(void)
     return ret;
 }
 
-int resoucreUserRegister(CResourceUser *resUser)
+int resourceUserRegister(CResourceUser *resUser)
 {
     int ret = 0;
     vector<CResourceUser *>::iterator iter;
 
     if (!resUser)
         return -EINVAL;
-    resoucreMutexCheckInit();
+    resourceMutexCheckInit();
 
     pthread_mutex_lock(&sRMutex);
     for (iter = sUList.begin(); iter != sUList.end(); iter++) {
@@ -227,11 +247,11 @@ user_register_end:
     return ret;
 }
 
-int resoucreCoreInit(unsigned int flags)
+int resourceCoreInit(unsigned int flags)
 {
-    logInfo(RESOURCE_TAG, "resoucreCoreInit");
-    resoucreMutexCheckInit();
+    logInfo(RESOURCE_TAG, "resourceCoreInit");
+    resourceMutexCheckInit();
 
     return 0;
 }
-AIBRAIN_CORE_MODULE_INIT(resoucreCoreInit);
+AIBRAIN_CORE_MODULE_INIT(resourceCoreInit);

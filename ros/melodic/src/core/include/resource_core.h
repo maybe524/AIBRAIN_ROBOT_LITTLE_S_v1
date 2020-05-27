@@ -47,12 +47,13 @@ public:
     CResource *use[RESOURCE_USER_CNT];
 };
 
-int resoucreRegister(CResource *res);
-int resoucreOpen(CResourceUser *resUser, char *resName);
-int resoucreCtrl(CResourceUser *resUser, char *resName, unsigned int cmd, void *data, unsigned int len, unsigned int flags);
-int resoucreClose(CResourceUser *resUser, char *resName);
-int resoucreWrite(CResourceUser *resUser, char *resName, void *data, unsigned int len, unsigned int flags);
-int resoucreUserRegister(CResourceUser *resUser);
-int resoucreCoreInit(unsigned int flags);
+int resourceRegister(CResource *res);
+int resourceOpen(CResourceUser *resUser, char *resName);
+int resourceCtrl(CResourceUser *resUser, char *resName, unsigned int cmd, void *data, unsigned int len, unsigned int flags);
+int resourceClose(CResourceUser *resUser, char *resName);
+int resourceWrite(CResourceUser *resUser, char *resName, void *data, unsigned int len, unsigned int flags);
+int resourceRead(CResourceUser *resUser, char *resName, void *data, unsigned int len, unsigned int flags);
+int resourceUserRegister(CResourceUser *resUser);
+int resourceCoreInit(unsigned int flags);
 
 #endif //EXAMPLE_RESOURCE_CORE_H

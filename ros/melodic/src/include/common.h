@@ -5,6 +5,8 @@
 #ifndef EXAMPLE_COMMON_H
 #define EXAMPLE_COMMON_H
 
+#include <string.h>
+
 #include "common.h"
 #include "errno.h"
 #include "log.h"

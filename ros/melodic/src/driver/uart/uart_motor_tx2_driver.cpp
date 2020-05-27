@@ -22,43 +22,46 @@
 #define buffLen 1024
 #define rcvTimeOut 2
 
-static CUartMotorTX2Resource uartMotorTX2Resource("res/uart/motor");
+static CUartMotorTX2Resource uartMotorTX2Resource("res/uart/motor0");
 
 int read_data_tty(int fd, char *rec_buf, int rec_wait);
 int device_485_receive(int fd);
-static int openPort(int comport);
-int setOpt(int fd, int nSpeed, int nBits, char nEvent, int nStop);
-int readDataTty(int fd, char *rcv_buf, int TimeOut, int Len);
-int sendDataTty(int fd, char *send_buf, int Len);
+static int uartGetPortFd(int comport);
+int uartSetOpt(int fd, int nSpeed, int nBits, char nEvent, int nStop);
+int uartGetDataStream(int fd, char *rcv_buf, int time_out, int llen);
+int uartSetDataStream(int fd, char *send_buf, int len);
 
 int CUartMotorTX2Resource::open(char *resName, unsigned int flags)
 {
-    int ret;
-    int iSetOpt = 0, fdSerial = 0;
-    char buffRcvData[buffLen] = {0};
-    unsigned int readDataNum = 0;
+    int ret, fd = -1;
 
     logInfo(UART_MOTOR_TX2_TAG, "uart open...");
-    // openPort
-    fdSerial = openPort(2);
-    if (fdSerial < 0) {
+    fd = uartGetPortFd(2);
+    if (fd < 0) {
         logInfo(UART_MOTOR_TX2_TAG, "open_port error");
         return -1;
     }
-    iSetOpt = setOpt(fdSerial, 115200, 8, 'N', 1);
-    if (iSetOpt < 0) {
+    ret = uartSetOpt(fd, 115200, 8, 'N', 1);
+    if (ret < 0) {
         logInfo(UART_MOTOR_TX2_TAG, "set_opt error");
         return -1;
     }
-    logInfo(UART_MOTOR_TX2_TAG, "serial fdSerial = %d, done", fdSerial);
-    tcflush(fdSerial, TCIOFLUSH);
-    fcntl(fdSerial, F_SETFL, 0);
+    tcflush(fd, TCIOFLUSH);
+    fcntl(fd, F_SETFL, 0);
+    this->data.portFd = fd;
+    logInfo(UART_MOTOR_TX2_TAG, "serial fdSerial = %d, done", this->data.portFd);
 
     return 0;
 }
 
 int CUartMotorTX2Resource::read(void *data, unsigned int len, unsigned int flags)
 {
+    int ret;
+
+    if (this->data.portFd <= 0)
+        return -EINVAL;
+    ret = uartGetDataStream(this->data.portFd, (char *)data, 10, len);
+
     return 0;
 }
 
@@ -69,11 +72,23 @@ int CUartMotorTX2Resource::ctrl(unsigned int cmd, void *data, unsigned int len, 
 
 int CUartMotorTX2Resource::write(void *data, unsigned int len, unsigned int flags)
 {
+    int ret;
+
+    logInfo(UART_MOTOR_TX2_TAG, "close, write: %d", this->data.portFd);
+    if (this->data.portFd <= 0)
+        return -EINVAL;
+    ret = uartSetDataStream(this->data.portFd, (char *)data, len);
     return 0;
 }
 
 int CUartMotorTX2Resource::close(char *userName, unsigned int flags)
 {
+    logInfo(UART_MOTOR_TX2_TAG, "close, portFd: %d", this->data.portFd);
+    if (this->data.portFd <= 0)
+        return -EINVAL;
+
+    // close(this->data.portFd);
+    this->data.portFd = 0;
     return 0;
 }
 
@@ -82,8 +97,8 @@ int read_data_tty(int fd, char *rec_buf, int rec_wait)
     int retval;
     fd_set rfds;
     struct timeval tv;
-
     int ret, pos;
+
     tv.tv_sec = rec_wait;
     tv.tv_usec = 0;
     pos = 0;
@@ -148,7 +163,7 @@ int device_485_receive(int fd)
     return 0;
 }
 
-static int openPort(int comport)
+static int uartGetPortFd(int comport)
 {
     int fd = 0, ret;
     char buff[32] = {0};
@@ -167,12 +182,14 @@ static int openPort(int comport)
     return fd;
 }
 
-int setOpt(int fd, int nSpeed, int nBits, char nEvent, int nStop)
+int uartSetOpt(int fd, int nSpeed, int nBits, char nEvent, int nStop)
 {
+    int ret;
     struct termios newtio, oldtio;
 
-    if (tcgetattr(fd, &oldtio) != 0) {
-        logInfo(UART_MOTOR_TX2_TAG, "SetupSerial 1");
+    ret = tcgetattr(fd, &oldtio);
+    if (ret != 0) {
+        logInfo(UART_MOTOR_TX2_TAG, "setupSerial 1");
         return -1;
     }
     bzero(&newtio, sizeof(newtio));
@@ -189,48 +206,42 @@ int setOpt(int fd, int nSpeed, int nBits, char nEvent, int nStop)
     }
 
     switch (nEvent) {
-    case 'O':                     //��У��
+    case 'O':
         newtio.c_cflag |= PARENB;
         newtio.c_cflag |= PARODD;
        	newtio.c_iflag |= (INPCK | ISTRIP);
         break;
-    case 'E':                     //żУ��
+    case 'E':
         newtio.c_iflag |= (INPCK | ISTRIP);
         newtio.c_cflag |= PARENB;
         newtio.c_cflag &= ~PARODD;
         break;
-    case 'N':                    //��У��
+    case 'N':
         newtio.c_cflag &= ~PARENB;
         break;
     }
 
     switch (nSpeed) {
     case 2400:
-        cfsetispeed(&newtio, B2400);
-        cfsetospeed(&newtio, B2400);
+        cfsetispeed(&newtio, B2400); cfsetospeed(&newtio, B2400);
         break;
     case 4800:
-        cfsetispeed(&newtio, B4800);
-        cfsetospeed(&newtio, B4800);
+        cfsetispeed(&newtio, B4800); cfsetospeed(&newtio, B4800);
         break;
     case 9600:
-        cfsetispeed(&newtio, B9600);
-        cfsetospeed(&newtio, B9600);
+        cfsetispeed(&newtio, B9600); cfsetospeed(&newtio, B9600);
         break;
     case 115200:
-        cfsetispeed(&newtio, B115200);
-        cfsetospeed(&newtio, B115200);
+        cfsetispeed(&newtio, B115200); cfsetospeed(&newtio, B115200);
         break;
     default:
-        cfsetispeed(&newtio, B9600);
-        cfsetospeed(&newtio, B9600);
+        cfsetispeed(&newtio, B9600); cfsetospeed(&newtio, B9600);
         break;
     }
-    if (nStop == 1) {
+    if (nStop == 1)
         newtio.c_cflag &= ~CSTOPB;
-    } else if (nStop == 2) {
+    else if (nStop == 2)
         newtio.c_cflag |= CSTOPB;
-    }
     newtio.c_cc[VTIME] = 0;
     newtio.c_cc[VMIN] = 0;
     tcflush(fd, TCIFLUSH);
@@ -238,19 +249,19 @@ int setOpt(int fd, int nSpeed, int nBits, char nEvent, int nStop)
         logInfo(UART_MOTOR_TX2_TAG, "com set error");
         return -1;
     }
-
     logInfo(UART_MOTOR_TX2_TAG, "set done!");
+
     return 0;
 }
 
-int readDataTty(int fd, char *rcv_buf, int TimeOut, int Len)
+int uartGetDataStream(int fd, char *buff, int time_out, int len)
 {
     int retval;
     fd_set rfds;
     struct timeval tv;
     int ret, pos;
-    tv.tv_sec = TimeOut / 1000;  //set the rcv wait time
-    tv.tv_usec = TimeOut % 1000 * 1000;  //100000us = 0.1s
+    tv.tv_sec = time_out / 1000;  //set the rcv wait time
+    tv.tv_usec = time_out % 1000 * 1000;  //100000us = 0.1s
 
     pos = 0;
     while (1) {
@@ -262,12 +273,12 @@ int readDataTty(int fd, char *rcv_buf, int TimeOut, int Len)
             break;
         }
 		else if (retval) {
-            ret = read(fd, rcv_buf + pos, 1);
+            ret = read(fd, buff + pos, 1);
             if (-1 == ret) {
                 break;
             }
             pos++;
-            if (Len <= pos) {
+            if (len <= pos) {
                 break;
             }
         } else {
@@ -278,36 +289,38 @@ int readDataTty(int fd, char *rcv_buf, int TimeOut, int Len)
     return pos;
 }
 
-int sendDataTty(int fd, char *send_buf, int Len)
+int uartSetDataStream(int fd, char *buff, int len)
 {
     ssize_t ret;
 
-    ret = write(fd, send_buf, Len);
+    if (!buff || !fd || !len)
+        return -EINVAL;
+    ret = write(fd, buff, len);
     if (ret == -1) {
         logInfo(UART_MOTOR_TX2_TAG, "write device error");
-        return -1;
+        return ret;
     }
 
-    return 1;
+    return ret;
 }
 
 #if 0
 int main(int argc, char** argv)
 {
 	int ret;
-    int iSetOpt = 0, fdSerial = 0;
+    int iuartSetOpt = 0, fdSerial = 0;
     char buffRcvData[buffLen] = {0};
     unsigned int readDataNum = 0;
 
-    //openPort
-    fdSerial = openPort(fdSerial, 4);
+    //uartGetPortFd
+    fdSerial = uartGetPortFd(fdSerial, 4);
     if (fdSerial < 0) {
         logInfo(UART_MOTOR_TX2_TAG, "open_port error");
         return -1;
     }
 
-	iSetOpt = setOpt(fdSerial, 115200, 8, 'N', 1);
-    if (iSetOpt < 0) {
+	iuartSetOpt = uartSetOpt(fdSerial, 115200, 8, 'N', 1);
+    if (iuartSetOpt < 0) {
         logInfo(UART_MOTOR_TX2_TAG, "set_opt error");
         return -1;
     }
@@ -321,13 +334,13 @@ int main(int argc, char** argv)
     buffRcvData[2] = 'a';
     buffRcvData[3] = 'r';
     buffRcvData[4] = 't';
-    ret = sendDataTty(fdSerial, buffRcvData, 5);
+    ret = uartSetDataStream(fdSerial, buffRcvData, 5);
 	logInfo(UART_MOTOR_TX2_TAG, "ret: %d.", ret);
     while (1) {
 		memset(buffRcvData, 0, sizeof(buffRcvData));
-        readDataNum = readDataTty(fdSerial, buffRcvData, rcvTimeOut, buffLen);
+        readDataNum = uartGetDataStream(fdSerial, buffRcvData, rcvTimeOut, buffLen);
 		logInfo(UART_MOTOR_TX2_TAG, "readDataNum = %d, buffRcvData: %s", readDataNum, buffRcvData);
-        // sendDataTty(fdSerial, buffRcvData, readDataNum);
+        // uartSetDataStream(fdSerial, buffRcvData, readDataNum);
     }
 
     return 1;
@@ -339,7 +352,7 @@ int driver_uart_tx2_init(unsigned int flags)
     int ret;
 
     logInfo(UART_MOTOR_TX2_TAG, "driver_uart_tx2 start");
-    ret = resoucreRegister(&uartMotorTX2Resource);
+    ret = resourceRegister(&uartMotorTX2Resource);
     logInfo(UART_MOTOR_TX2_TAG, "driver_uart_tx2 ret: %d", ret);
 
     return 0;

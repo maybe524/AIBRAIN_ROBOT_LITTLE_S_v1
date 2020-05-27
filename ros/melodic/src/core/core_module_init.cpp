@@ -7,7 +7,7 @@
 
 int coreModuleInit(unsigned int flags)
 {
-    resoucreCoreInit(0);
+    resourceCoreInit(0);
 
     return 0;
 }
