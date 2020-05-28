@@ -6,7 +6,8 @@
 #include "app_motor_test.h"
 
 static CResourceUser motorResourceUser;
-static char *uartPort = "res/uart/motor0";
+static char *resName = "res/uart/motor0";
+static char *atLog = "AT+LOG=1\r\n";
 
 int app_motor_test(unsigned int flags)
 {
@@ -18,12 +19,14 @@ int app_motor_test(unsigned int flags)
     ret = resourceUserRegister(resUser);
     logInfo(APP_MOTOR_TAG, "resourceUserRegister ret: %d", ret);
 
-    ret = resourceOpen(resUser, uartPort);
+    ret = resourceOpen(resUser, resName);
     logInfo(APP_MOTOR_TAG, "resourceOpen ret: %d", ret);
 
     while (true) {
+        ret = resourceWrite(resUser, resName, atLog, strlen(atLog), 0);
+        logInfo(APP_MOTOR_TAG, "ret: %d, write", ret);
         memset(buff, 0, sizeof(buff));
-        ret = resourceRead(resUser, uartPort, buff, sizeof(buff), 0);
+        ret = resourceRead(resUser, resName, buff, sizeof(buff), 0);
         logInfo(APP_MOTOR_TAG, "ret: %d, buff: %s", ret, buff);
     }
 
