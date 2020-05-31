@@ -9,6 +9,6 @@
 
 int app_motor_test(unsigned int flags);
 
-#define APP_MOTOR_TAG      "appMotorT"
+#define APP_MOTOR_TAG      "      app"
 
 #endif //EXAMPLE_APP_MOTOR_TEST_H

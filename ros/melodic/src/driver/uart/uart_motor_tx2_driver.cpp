@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include <termios.h> //set baud rate
+#include <termios.h> // set baud rate
 
 #include <sys/select.h>
 #include <sys/time.h>
@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <resource_core.h>
+#include <pthread.h>
 
 #include "log.h"
 #include "common_core.h"
@@ -24,6 +25,13 @@
 
 static CUartMotorTX2Resource uartMotorPort0("res/uart/motor0", 2);      // 把Uart的dev/ttyTHS2映射到资源的“res/uart/motor0”。
 static CUartMotorTX2Resource uartMotorPort1("res/uart/motor1", 1);      // 把Uart的dev/ttyTHS1映射到资源的“res/uart/motor1”。
+static pthread_t uartTid;
+static const char *testString = "DEBUG [00000804]: hello dwm1000! build time: 20:32:56 May 25 2020\r\n"
+                                "DEBUG [00000811]: dwm1000 loop...\r\n"
+                                "DEBUG [00000814]: hello dwm1000!\r\n"
+                                "DEBUG [00000897]: init pass!\r\n"
+                                "DEBUG [00000900]: dmw use for ANTHOR\r\n"
+                                "DEBUG [00000903]: device_id: 0xdeca0130(=? 0xdeca0130).\r\n";
 
 int read_data_tty(int fd, char *rec_buf, int rec_wait);
 int device_485_receive(int fd);
@@ -70,7 +78,92 @@ int CUartMotorTX2Resource::read(void *data, unsigned int len, unsigned int flags
         return -EINVAL;
     ret = uartGetDataStream(this->data.portFd, (char *)data, 10, len);
 
-    return 0;
+    return ret;
+}
+
+static __inline int uartMsg2User(uart_motor_async_cb msgFun, int eventId, void *data, unsigned int len)
+{
+    return msgFun(eventId, data, len);
+}
+
+static __inline bool uartMotorChkRN(char *buff, unsigned int size, unsigned int *offs)
+{
+    int i;
+
+    *offs = 0;
+    if (size) {
+        for (i = 0; i < size; i++) {
+            if (buff[i] == '\n') {
+                *offs = i + 1;
+                return true;
+            }
+        }
+    }
+    else {
+        for (i = 0; buff[i]; i++) {
+            if (buff[i] == '\n') {
+                *offs = i + 1;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/*
+*  函数功能：收取串口的每一行数据，提供给上层所有的回复
+*  假设每一个消息是在1024字节以内
+*/
+static void *uartMotorThreadHandl(void *data)
+{
+    int ret, step = 0;
+    unsigned int offs = 0, allSize = 0, readSize = 0;
+    unsigned int iniStatus = 0;
+    CUartMotorTX2Resource *usrtRes = (CUartMotorTX2Resource *)data;
+    char buff[1024] = {0};
+    bool isFoundOne = false;
+
+    logInfo(UART_MOTOR_TX2_TAG, "uart notify start...");
+    if (!usrtRes->data.portFd || !usrtRes->data.cb) {
+        logInfo(UART_MOTOR_TX2_TAG, "detect portFd is null");
+        return NULL;
+    }
+    memset(buff, 0, sizeof(buff));
+    iniStatus = UART_MOTOR_STATUS_INITOK;
+    ret = uartMsg2User(usrtRes->data.cb, UART_MOTOR_NOTIFY_ID_STATUS, (void *)&iniStatus, 0);
+
+    while (true) {
+        if (usrtRes->data.isNeedCancelNotify) {
+            logInfo(UART_MOTOR_TX2_TAG, "detect need cancel notify");
+            break;
+        }
+        readSize = usrtRes->read((void *)(buff + allSize), sizeof(buff), 0);
+        if (readSize > 0)
+            allSize += readSize;
+        else {
+            sleep(1);
+            continue;
+        }
+        if (allSize >= sizeof(buff)) {
+            memset(buff, 0, sizeof(buff));
+            allSize = 0;
+            continue;
+        }
+msg_try_get_one:
+        isFoundOne = uartMotorChkRN(readSize ? buff + allSize - readSize : buff, readSize, &offs);
+        logInfo(UART_MOTOR_TX2_TAG, "found: %d, offs: %d", isFoundOne, offs);
+        if (isFoundOne && allSize) {
+            ret = uartMsg2User(usrtRes->data.cb, UART_MOTOR_NOTIFY_ID_RECV, buff, offs);
+            allSize = allSize - offs;
+            readSize = 0;
+            memcpy(buff, buff + offs, allSize);
+            memset(buff + allSize, 0, 1);
+            goto msg_try_get_one;
+        }
+    }
+
+    return NULL;
 }
 
 int CUartMotorTX2Resource::ctrl(unsigned int cmd, void *data, unsigned int len, unsigned int flags)
@@ -78,10 +171,27 @@ int CUartMotorTX2Resource::ctrl(unsigned int cmd, void *data, unsigned int len, 
     int ret = -EINVAL;
 
     switch (cmd) {
-    case UART_MOTOR_CTL_SET_ASYNC_CB:
-        if (!data || this->data.portFd <= 0)
+    case UART_MOTOR_CTL_SET_EVENT_CB:
+        if (!data || this->data.portFd <= 0 || this->data.cb) {
+            logInfo(UART_MOTOR_TX2_TAG, "data: %p, portFd: %d, cb: %p", data, this->data.portFd, this->data.cb);
+            ret = -EINVAL;
             break;
-        this->data.cb = (uart_motor_async_cb *)data;
+        }
+        this->data.cb = (uart_motor_async_cb)data;
+        logInfo(UART_MOTOR_TX2_TAG, "notify cb: %p, set done", this->data.cb);
+        break;
+    case UART_MOTOR_CTL_START_NOTIFY:
+        if (this->data.isNotifyBusy || !this->data.cb) {
+            logInfo(UART_MOTOR_TX2_TAG, "notify busy: %d, cb: %p", this->data.isNotifyBusy, this->data.cb);
+            ret = -EBUSY;
+            break;
+        }
+        this->data.isNeedCancelNotify = false;
+        this->data.isNotifyBusy = true;
+        ret = pthread_create(&uartTid, NULL, uartMotorThreadHandl, (void *)this);
+        ret = pthread_detach(uartTid);
+        break;
+    default:
         break;
     }
     return ret;

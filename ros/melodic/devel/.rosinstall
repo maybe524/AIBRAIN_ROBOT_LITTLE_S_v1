@@ -1,2 +1,2 @@
 - setup-file:
-    local-name: /home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodic/devel/setup.sh
+    local-name: /aibrain/WorkSpace/AIBRAIN_ROBOT_LITTLE_S_v1/ros/melodic/devel/setup.sh

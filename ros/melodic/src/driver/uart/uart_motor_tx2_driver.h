@@ -10,19 +10,30 @@
 
 #define UART_MOTOR_TX2_TAG  "uartmotor"
 
-#define UART_MOTOR_CTL_SET_ASYNC_CB     0x01
+#define UART_MOTOR_CTL_SET_EVENT_CB             0x01
 /*
-*  设置获取每一行数据，每一行数据以\r\n结束。
-*  意味着底层要提供该上层以\r\n结束的数据，如果没有\r\n则不返回给应用层。
+*  开始启动处理指令的程序
 */
-#define UART_MOTOR_CTL_SET_EVENT_BY_ONELINE     0x02
+#define UART_MOTOR_CTL_START_NOTIFY             0x02
+
+
+// UART的回调消息分类
+#define UART_MOTOR_NOTIFY_ID_RECV               0x01
+// 获取uartMotor的初始化状态等
+#define UART_MOTOR_NOTIFY_ID_STATUS             0x02
+
+
+#define UART_MOTOR_STATUS_INITOK                0x01    //  表示初始化OK
 
 typedef int (*uart_motor_async_cb)(int eventId, void *data, unsigned int len);
 
 struct uart_motor_prcdata {
     int portFd;
     int portId;
-    uart_motor_async_cb *cb;
+    bool isNotifyBusy;
+    bool isNeedCancelNotify;
+
+    uart_motor_async_cb cb;
 };
 
 class CUartMotorTX2Resource: public CResource {
@@ -37,7 +48,6 @@ public:
     int write(void *data, unsigned int len, unsigned int flags);
     int close(char *userName, unsigned int flags);
 
-private:
     struct uart_motor_prcdata data;
 };
 

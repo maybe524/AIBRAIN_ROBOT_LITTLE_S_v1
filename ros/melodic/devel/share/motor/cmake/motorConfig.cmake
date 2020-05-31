@@ -67,14 +67,14 @@ set(motor_CONFIG_INCLUDED TRUE)
 
 # set variables for source/devel/install prefixes
 if("TRUE" STREQUAL "TRUE")
-  set(motor_SOURCE_PREFIX /home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodic/src/motor)
-  set(motor_DEVEL_PREFIX /home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodic/devel)
+  set(motor_SOURCE_PREFIX /aibrain/WorkSpace/AIBRAIN_ROBOT_LITTLE_S_v1/ros/melodic/src/motor)
+  set(motor_DEVEL_PREFIX /aibrain/WorkSpace/AIBRAIN_ROBOT_LITTLE_S_v1/ros/melodic/devel)
   set(motor_INSTALL_PREFIX "")
   set(motor_PREFIX ${motor_DEVEL_PREFIX})
 else()
   set(motor_SOURCE_PREFIX "")
   set(motor_DEVEL_PREFIX "")
-  set(motor_INSTALL_PREFIX /home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodic/install)
+  set(motor_INSTALL_PREFIX /aibrain/WorkSpace/AIBRAIN_ROBOT_LITTLE_S_v1/ros/melodic/install)
   set(motor_PREFIX ${motor_INSTALL_PREFIX})
 endif()
 
@@ -91,9 +91,9 @@ endif()
 # flag project as catkin-based to distinguish if a find_package()-ed project is a catkin project
 set(motor_FOUND_CATKIN_PROJECT TRUE)
 
-if(NOT "/home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodic/src/motor/include " STREQUAL " ")
+if(NOT " " STREQUAL " ")
   set(motor_INCLUDE_DIRS "")
-  set(_include_dirs "/home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodic/src/motor/include")
+  set(_include_dirs "")
   if(NOT " " STREQUAL " ")
     set(_report "Check the issue tracker '' and consider creating a ticket if the problem has not been reported yet.")
   elseif(NOT " " STREQUAL " ")
@@ -110,7 +110,7 @@ if(NOT "/home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodi
         message(FATAL_ERROR "Project 'motor' specifies '${idir}' as an include dir, which is not found.  It does not exist in '${include}'.  ${_report}")
       endif()
     else()
-      message(FATAL_ERROR "Project 'motor' specifies '${idir}' as an include dir, which is not found.  It does neither exist as an absolute directory nor in '/home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodic/src/motor/${idir}'.  ${_report}")
+      message(FATAL_ERROR "Project 'motor' specifies '${idir}' as an include dir, which is not found.  It does neither exist as an absolute directory nor in '/aibrain/WorkSpace/AIBRAIN_ROBOT_LITTLE_S_v1/ros/melodic/src/motor/${idir}'.  ${_report}")
     endif()
     _list_append_unique(motor_INCLUDE_DIRS ${include})
   endforeach()
@@ -154,7 +154,7 @@ foreach(library ${libraries})
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
-    foreach(path /home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodic/devel/lib;/home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodic/devel/lib;/opt/ros/melodic/lib)
+    foreach(path /aibrain/WorkSpace/AIBRAIN_ROBOT_LITTLE_S_v1/ros/melodic/devel/lib;/aibrain/WorkSpace/AIBRAIN_ROBOT_LITTLE_S_v1/ros/melodic/devel/lib;/opt/ros/melodic/lib)
       find_library(lib ${library}
         PATHS ${path}
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)

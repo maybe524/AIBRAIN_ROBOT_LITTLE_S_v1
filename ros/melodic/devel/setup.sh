@@ -11,7 +11,7 @@
 
 # since this file is sourced either use the provided _CATKIN_SETUP_DIR
 # or fall back to the destination set at configure time
-: ${_CATKIN_SETUP_DIR:=/home/huangxiaowen/Project/AIBRAIN_ROBOT_LITTLE_S_v1_20200411/ros/melodic/devel}
+: ${_CATKIN_SETUP_DIR:=/aibrain/WorkSpace/AIBRAIN_ROBOT_LITTLE_S_v1/ros/melodic/devel}
 _SETUP_UTIL="$_CATKIN_SETUP_DIR/_setup_util.py"
 unset _CATKIN_SETUP_DIR
 
