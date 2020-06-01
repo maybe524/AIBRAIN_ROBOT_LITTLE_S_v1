@@ -141,18 +141,22 @@ static void *uartMotorThreadHandl(void *data)
         readSize = usrtRes->read((void *)(buff + allSize), sizeof(buff), 0);
         if (readSize > 0)
             allSize += readSize;
-        else {
-            sleep(1);
-            continue;
-        }
-        if (allSize >= sizeof(buff)) {
+        else if (allSize >= sizeof(buff)) {
             memset(buff, 0, sizeof(buff));
             allSize = 0;
             continue;
         }
+        else {
+            sleep(1);
+            continue;
+        }
+        /*
+        *  把所有的接受数据解析成一条条网上层应用上报，
+        *  知道处理完所有数据。
+        *  readSize不为空说明是，又是接受了一比数据。
+        */
 msg_try_get_one:
         isFoundOne = uartMotorChkRN(readSize ? buff + allSize - readSize : buff, readSize, &offs);
-        logInfo(UART_MOTOR_TX2_TAG, "found: %d, offs: %d", isFoundOne, offs);
         if (isFoundOne && allSize) {
             ret = uartMsg2User(usrtRes->data.cb, UART_MOTOR_NOTIFY_ID_RECV, buff, offs);
             allSize = allSize - offs;
